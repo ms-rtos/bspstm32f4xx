@@ -22,7 +22,6 @@
 #include "ms_config.h"
 #include "ms_rtos.h"
 #include "ms_io_core.h"
-#include "ms_littlefs.h"
 #include "ms_fatfs.h"
 #include "ms_net_lwip.h"
 #include "ms_net_esp_at.h"

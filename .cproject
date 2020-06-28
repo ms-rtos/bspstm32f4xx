@@ -15,28 +15,25 @@
 	<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
 	<storageModule moduleId="refreshScope"/>
 	<storageModule moduleId="org.eclipse.cdt.core.pathentry">
-		<pathentry kind="mac" name="__GNUC__" path="" value="4"/>
-		<pathentry kind="mac" name="__MS_RTOS__" path="" value=""/>
-		<pathentry kind="mac" name="__arm__" path="" value=""/>
-		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_iot/msrtos_base/libmsrtos/src/config" kind="inc" path="" system="true"/>
-		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_iot/msrtos_base/libmsrtos/src/analysis" kind="inc" path="" system="true"/>
-		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_iot/msrtos_base/lwip_net/src" kind="inc" path="" system="true"/>
+		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_msrtos/msrtos_base_sdk/libmsrtos/src/config" kind="inc" path="" system="true"/>
+		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_msrtos/msrtos_base_sdk/libmsrtos/src/analysis" kind="inc" path="" system="true"/>
+		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_msrtos/msrtos_base_sdk/lwip_net/src" kind="inc" path="" system="true"/>
 		<pathentry base-ref="bspstm32f4xx" include="D:/Software/IoT-Studio/compiler/arm-msrtos-toolchain/lib/gcc/arm-msrtos-eabi/7.2.1/include" kind="inc" path="" system="true"/>
-		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_iot/msrtos_base/libmsrtos/src/cplusplus" kind="inc" path="" system="true"/>
-		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_iot/msrtos_base/libmsrtos/src/libc" kind="inc" path="" system="true"/>
-		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_iot/msrtos_base/libmsrtos/src/components" kind="inc" path="" system="true"/>
-		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_iot/msrtos_base/libmsrtos/src/shell" kind="inc" path="" system="true"/>
-		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_iot/msrtos_base/lwip_net/src/lwIP/src/include" kind="inc" path="" system="true"/>
-		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_iot/msrtos_base/libmsrtos/src/kern" kind="inc" path="" system="true"/>
-		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_iot/msrtos_base/libmsrtos/src/io" kind="inc" path="" system="true"/>
-		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_iot/msrtos_base/libmsrtos/src/driver" kind="inc" path="" system="true"/>
-		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_iot/msrtos_base/libmsrtos/src/net" kind="inc" path="" system="true"/>
-		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_iot/msrtos_base/libmsrtos/src/posix" kind="inc" path="" system="true"/>
-		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_iot/msrtos_base/libmsrtos/src" kind="inc" path="" system="true"/>
-		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_iot/msrtos_base/libmsrtos/src/arch" kind="inc" path="" system="true"/>
-		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_iot/msrtos_base/libmsrtos/src/bsp" kind="inc" path="" system="true"/>
+		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_msrtos/msrtos_base_sdk/libmsrtos/src/cplusplus" kind="inc" path="" system="true"/>
+		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_msrtos/msrtos_base_sdk/libmsrtos/src/libc" kind="inc" path="" system="true"/>
+		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_msrtos/msrtos_base_sdk/libmsrtos/src/components" kind="inc" path="" system="true"/>
+		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_msrtos/msrtos_base_sdk/libmsrtos/src/shell" kind="inc" path="" system="true"/>
+		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_msrtos/msrtos_base_sdk/lwip_net/src/lwIP/src/include" kind="inc" path="" system="true"/>
+		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_msrtos/msrtos_base_sdk/libmsrtos/src/kern" kind="inc" path="" system="true"/>
+		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_msrtos/msrtos_base_sdk/libmsrtos/src/io" kind="inc" path="" system="true"/>
+		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_msrtos/msrtos_base_sdk/libmsrtos/src/driver" kind="inc" path="" system="true"/>
+		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_msrtos/msrtos_base_sdk/libmsrtos/src/net" kind="inc" path="" system="true"/>
+		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_msrtos/msrtos_base_sdk/libmsrtos/src/posix" kind="inc" path="" system="true"/>
+		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_msrtos/msrtos_base_sdk/libmsrtos/src" kind="inc" path="" system="true"/>
+		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_msrtos/msrtos_base_sdk/libmsrtos/src/arch" kind="inc" path="" system="true"/>
+		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_msrtos/msrtos_base_sdk/libmsrtos/src/bsp" kind="inc" path="" system="true"/>
 		<pathentry base-ref="bspstm32f4xx" include="D:/Software/IoT-Studio/compiler/arm-msrtos-toolchain/arm-msrtos-eabi/include" kind="inc" path="" system="true"/>
-		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_iot/msrtos_base/libmsrtos/src/posix/inc" kind="inc" path="" system="true"/>
+		<pathentry base-ref="bspstm32f4xx" include="D:/Work/workspace_msrtos/msrtos_base_sdk/libmsrtos/src/posix/inc" kind="inc" path="" system="true"/>
 		<pathentry excluding="obj|dep" kind="out" path="Debug"/>
 		<pathentry excluding="obj|dep" kind="out" path="Release"/>
 	</storageModule>

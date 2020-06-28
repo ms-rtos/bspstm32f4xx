@@ -75,10 +75,7 @@ include $(MKTEMP)/header.mk
 # Include targets makefiles
 #*********************************************************************************************************
 include stm32f4hal.mk
-include src/board/IOT_PI_V1/bspiotpiv1.mk
 include src/board/IOT_PI/bspiotpi.mk
-include src/board/CSG_SMART_METER/bspsmartmeter.mk
-include src/board/ALIENTEK_APOLLO_F429/bspalientekf429.mk
 
 #*********************************************************************************************************
 # Include end.mk

@@ -1,11 +1,7 @@
 <?xml version="1.0" encoding="GB2312" standalone="no"?>
 <MSRTOSSetting>
 <BaseSetting Profile="standard" ProjectType="MSRTOSBspProject" RealEvoVer="0.9.5"/>
-<OutputSetting>
-<OutputPath Name="Output" Path="Release:Debug" TreeNode="Output"/>
-<OutputPath Name="Debug" Path="Debug" TreeNode="Debug"/>
-<OutputPath Name="Release" Path="Release" TreeNode="Release"/>
-</OutputSetting>
+<OutputSetting/>
 <BuildSetting CoustomCfgMakefile="false" NeedReBuild="false" NotScanSourceFile="true"/>
 <BspSetting TemplatePath="/bsp/arm/arm-msrtos-bsp"/>
 <UploadPath/>
