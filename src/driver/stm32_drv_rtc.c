@@ -29,10 +29,9 @@
 
 #if BSP_CFG_RTC_EN > 0
 
-static RTC_HandleTypeDef stm32_rtc_handle;
-
-static ms_err_t __stm32_rtc_set_time(const ms_rtc_time_t *rtc_time)
+static ms_err_t __stm32_rtc_set_time(ms_ptr_t drv_ctx, const ms_rtc_time_t *rtc_time)
 {
+    RTC_HandleTypeDef *rtc_handle = drv_ctx;
     RTC_DateTypeDef sdatestructure;
     RTC_TimeTypeDef stimestructure;
 
@@ -43,7 +42,7 @@ static ms_err_t __stm32_rtc_set_time(const ms_rtc_time_t *rtc_time)
     sdatestructure.Month   = rtc_time->month;
     sdatestructure.Date    = rtc_time->date;
     sdatestructure.WeekDay = rtc_time->weekday;
-    HAL_RTC_SetDate(&stm32_rtc_handle, &sdatestructure, RTC_FORMAT_BIN);
+    HAL_RTC_SetDate(rtc_handle, &sdatestructure, RTC_FORMAT_BIN);
 
     /*
      * Set Time
@@ -54,25 +53,26 @@ static ms_err_t __stm32_rtc_set_time(const ms_rtc_time_t *rtc_time)
     stimestructure.TimeFormat     = RTC_HOURFORMAT_24;
     stimestructure.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
     stimestructure.StoreOperation = RTC_STOREOPERATION_RESET;
-    HAL_RTC_SetTime(&stm32_rtc_handle, &stimestructure, RTC_FORMAT_BIN);
+    HAL_RTC_SetTime(rtc_handle, &stimestructure, RTC_FORMAT_BIN);
 
     return MS_ERR_NONE;
 }
 
-static ms_err_t __stm32_rtc_get_time(ms_rtc_time_t *rtc_time)
+static ms_err_t __stm32_rtc_get_time(ms_ptr_t drv_ctx, ms_rtc_time_t *rtc_time)
 {
+    RTC_HandleTypeDef *rtc_handle = drv_ctx;
     RTC_DateTypeDef sdatestructureget;
     RTC_TimeTypeDef stimestructureget;
 
     /*
      * Get the RTC current Time
      */
-    HAL_RTC_GetTime(&stm32_rtc_handle, &stimestructureget, RTC_FORMAT_BIN);
+    HAL_RTC_GetTime(rtc_handle, &stimestructureget, RTC_FORMAT_BIN);
 
     /*
      * Get the RTC current Date
      */
-    HAL_RTC_GetDate(&stm32_rtc_handle, &sdatestructureget, RTC_FORMAT_BIN);
+    HAL_RTC_GetDate(rtc_handle, &sdatestructureget, RTC_FORMAT_BIN);
 
     rtc_time->year    = sdatestructureget.Year;         /* base 2000 */
     rtc_time->month   = sdatestructureget.Month;        /* MS_RTC_MONTH_xxx */
@@ -90,7 +90,7 @@ static ms_err_t __stm32_rtc_get_time(ms_rtc_time_t *rtc_time)
   * @param  None
   * @retval None
   */
-static void RTC_CalendarConfig(void)
+static void RTC_CalendarConfig(RTC_HandleTypeDef *rtc_handle)
 {
     RTC_DateTypeDef sdatestructure;
     RTC_TimeTypeDef stimestructure;
@@ -102,7 +102,7 @@ static void RTC_CalendarConfig(void)
     sdatestructure.Month   = MS_RTC_MONTH_FEBRUARY;
     sdatestructure.Date    = 18;
     sdatestructure.WeekDay = MS_RTC_WEEKDAY_TUESDAY;
-    HAL_RTC_SetDate(&stm32_rtc_handle, &sdatestructure, RTC_FORMAT_BIN);
+    HAL_RTC_SetDate(rtc_handle, &sdatestructure, RTC_FORMAT_BIN);
 
     /*
      * Set Time: 02:00:00
@@ -113,16 +113,18 @@ static void RTC_CalendarConfig(void)
     stimestructure.TimeFormat     = RTC_HOURFORMAT_24;
     stimestructure.DayLightSaving = RTC_DAYLIGHTSAVING_NONE;
     stimestructure.StoreOperation = RTC_STOREOPERATION_RESET;
-    HAL_RTC_SetTime(&stm32_rtc_handle, &stimestructure, RTC_FORMAT_BIN);
+    HAL_RTC_SetTime(rtc_handle, &stimestructure, RTC_FORMAT_BIN);
 
     /*
      * Writes a data in a RTC Backup data Register1
      */
-    HAL_RTCEx_BKUPWrite(&stm32_rtc_handle, RTC_BKP_DR1, 0x32F2);
+    HAL_RTCEx_BKUPWrite(rtc_handle, RTC_BKP_DR1, 0x32F2);
 }
 
-static ms_err_t __stm32_rtc_init(void)
+static ms_err_t __stm32_rtc_init(ms_ptr_t drv_ctx)
 {
+    RTC_HandleTypeDef *rtc_handle = drv_ctx;
+
     /*
      * Configure RTC prescaler and RTC data registers
      */
@@ -135,24 +137,24 @@ static ms_err_t __stm32_rtc_init(void)
      *  - OutPutPolarity = High Polarity
      *  - OutPutType     = Open Drain
      */
-    stm32_rtc_handle.Instance            = RTC;
-    stm32_rtc_handle.Init.HourFormat     = RTC_HOURFORMAT_24;
-    stm32_rtc_handle.Init.AsynchPrediv   = BSP_CFG_RTC_ASYNCH_PREDIV;
-    stm32_rtc_handle.Init.SynchPrediv    = BSP_CFG_RTC_SYNCH_PREDIV;
-    stm32_rtc_handle.Init.OutPut         = RTC_OUTPUT_DISABLE;
-    stm32_rtc_handle.Init.OutPutPolarity = RTC_OUTPUT_POLARITY_HIGH;
-    stm32_rtc_handle.Init.OutPutType     = RTC_OUTPUT_TYPE_OPENDRAIN;
-    __HAL_RTC_RESET_HANDLE_STATE(&stm32_rtc_handle);
-    HAL_RTC_Init(&stm32_rtc_handle);
+    rtc_handle->Instance            = RTC;
+    rtc_handle->Init.HourFormat     = RTC_HOURFORMAT_24;
+    rtc_handle->Init.AsynchPrediv   = BSP_CFG_RTC_ASYNCH_PREDIV;
+    rtc_handle->Init.SynchPrediv    = BSP_CFG_RTC_SYNCH_PREDIV;
+    rtc_handle->Init.OutPut         = RTC_OUTPUT_DISABLE;
+    rtc_handle->Init.OutPutPolarity = RTC_OUTPUT_POLARITY_HIGH;
+    rtc_handle->Init.OutPutType     = RTC_OUTPUT_TYPE_OPENDRAIN;
+    __HAL_RTC_RESET_HANDLE_STATE(rtc_handle);
+    HAL_RTC_Init(rtc_handle);
 
     /*
      * Read the Back Up Register 1 Data
      */
-    if (HAL_RTCEx_BKUPRead(&stm32_rtc_handle, RTC_BKP_DR1) != 0x32F2) {
+    if (HAL_RTCEx_BKUPRead(rtc_handle, RTC_BKP_DR1) != 0x32F2) {
         /*
          * Configure RTC Calendar
          */
-        RTC_CalendarConfig();
+        RTC_CalendarConfig(rtc_handle);
     } else {
         /*
          * Clear source Reset Flag
@@ -169,9 +171,11 @@ static ms_rtc_drv_t __stm32_rtc_drv = {
         .get_time = __stm32_rtc_get_time,
 };
 
-ms_rtc_drv_t *stm32_rtc_drv(void)
+static RTC_HandleTypeDef __stm32_rtc_handle;
+
+ms_err_t stm32_rtc_dev_create(void)
 {
-    return &__stm32_rtc_drv;
+    return ms_rtc_dev_create(MS_RTC_DEV_PATH, &__stm32_rtc_drv, &__stm32_rtc_handle);
 }
 
 #endif

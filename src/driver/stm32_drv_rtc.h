@@ -26,7 +26,7 @@
 extern "C" {
 #endif
 
-ms_rtc_drv_t *stm32_rtc_drv(void);
+ms_err_t stm32_rtc_dev_create(void);
 
 #ifdef __cplusplus
 }

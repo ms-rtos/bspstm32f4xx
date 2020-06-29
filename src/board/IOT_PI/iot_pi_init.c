@@ -285,7 +285,7 @@ static void boot_thread(ms_ptr_t arg)
 
 #if BSP_CFG_RTC_EN > 0
     ms_rtc_drv_register();
-    ms_rtc_dev_register(stm32_rtc_drv());
+    stm32_rtc_dev_create();
 #endif
 
 #if BSP_CFG_SD_EN > 0
