@@ -43,6 +43,7 @@ extern "C" {
 #include "driver/stm32_drv_uart.h"
 #include "driver/stm32_drv_usart.h"
 #include "driver/stm32_drv_smartcard.h"
+#include "driver/stm32_drv_spi.h"
 
 #ifdef __cplusplus
 }

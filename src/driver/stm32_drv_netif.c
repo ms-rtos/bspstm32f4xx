@@ -57,6 +57,7 @@
 
 #include "lwip/opt.h"
 #include "lwip/timeouts.h"
+#include "lwip/snmp.h"
 #include "netif/ethernet.h"
 #include "netif/etharp.h"
 #include "stm32_drv_netif.h"
@@ -257,6 +258,15 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
   DmaTxDesc = EthHandle.TxDesc;
   bufferoffset = 0;
   
+#if MS_LWIP_NETIF_MIP_EN > 0
+  netif = netif_get_masterif(netif);
+#endif
+
+  /* drop the padding word */
+#if ETH_PAD_SIZE
+  pbuf_header(p, -ETH_PAD_SIZE);
+#endif
+
   /* copy frame from pbufs to driver buffers */
   for(q = p; q != NULL; q = q->next)
   {
@@ -304,6 +314,23 @@ static err_t low_level_output(struct netif *netif, struct pbuf *p)
   /* Prepare transmit descriptors to give to DMA */ 
   HAL_ETH_TransmitFrame(&EthHandle, framelength);
   
+  LINK_STATS_INC(link.xmit);
+  snmp_add_ifoutoctets(netif, framelength);
+
+  if (((ms_uint8_t *)p->payload)[0] & 1)
+  {
+    snmp_inc_ifoutnucastpkts(netif);
+  }
+  else
+  {
+    snmp_inc_ifoutucastpkts(netif);
+  }
+
+  /* Reclaim the padding word */
+#if ETH_PAD_SIZE
+  pbuf_header(p, ETH_PAD_SIZE);
+#endif
+
   errval = ERR_OK;
   
 error:
@@ -318,6 +345,34 @@ error:
     EthHandle.Instance->DMATPDR = 0;
   }
   return errval;
+}
+
+/*
+ * Netif ioctl
+ */
+static int low_level_ioctl(struct netif *netif, int cmd, void *arg)
+{
+    int ret;
+
+    netif = netif_get_masterif(netif);
+
+    switch (cmd) {
+    case SIOCSIFHWADDR: {
+        struct ifreq *ifreq = arg;
+
+        EthHandle.Init.MACAddr = (ms_uint8_t *)ifreq->ifr_hwaddr.sa_data;
+        HAL_ETH_UpdateAddress(&EthHandle);
+
+        ret = 0;
+    }
+        break;
+
+    default:
+        ret = -1;
+        break;
+    }
+
+    return ret;
 }
 
 /**
@@ -349,12 +404,21 @@ static struct pbuf * low_level_input(struct netif *netif)
   
   if (len > 0)
   {
+   /* Allow room for Ethernet padding    */
+#if ETH_PAD_SIZE
+   len += ETH_PAD_SIZE;
+#endif
     /* We allocate a pbuf chain of pbufs from the Lwip buffer pool */
     p = pbuf_alloc(PBUF_RAW, len, PBUF_POOL);
   }
   
   if (p != NULL)
   {
+  /*  Drop the padding word  */
+#if ETH_PAD_SIZE
+  pbuf_header(p, -ETH_PAD_SIZE);
+#endif
+
     dmarxdesc = EthHandle.RxFrameInfos.FSRxDesc;
     bufferoffset = 0;
     
@@ -383,6 +447,13 @@ static struct pbuf * low_level_input(struct netif *netif)
       bufferoffset = bufferoffset + byteslefttocopy;
     }
   }
+  else
+  {
+      ms_printk(MS_PK_ERR, "stm32 net allocate pbuf failed!\n");
+      LINK_STATS_INC(link.memerr);
+      LINK_STATS_INC(link.drop);
+      snmp_inc_ifindiscards(netif);
+  }
     
   /* Release descriptors to DMA */
   /* Point to first descriptor */
@@ -405,6 +476,12 @@ static struct pbuf * low_level_input(struct netif *netif)
     /* Resume DMA reception */
     EthHandle.Instance->DMARPDR = 0;
   }
+
+  /*  Reclaim the padding word  */
+#if ETH_PAD_SIZE
+  pbuf_header(p, ETH_PAD_SIZE);
+#endif
+
   return p;
 }
 
@@ -429,8 +506,10 @@ void ethernetif_input( void const * argument )
       do
       {
         p = low_level_input( netif );
-        if (p != NULL)
+        if (p != NULL) 
         {
+          u8_t nnucast = ((ms_uint8_t *)p->payload)[ETH_PAD_SIZE] & 1;
+          u32_t tot_len = p->tot_len;
 #if MS_LWIP_NETIF_MIP_EN > 0
           struct netif *mipif = netif_mipif_search(netif, p);
 
@@ -440,6 +519,22 @@ void ethernetif_input( void const * argument )
 #endif
           {
             pbuf_free(p);
+            ms_printk(MS_PK_ERR, "stm32 net post pbuf failed!\n");
+            LINK_STATS_INC(link.drop);
+            snmp_inc_ifindiscards(netif);
+          }
+          else
+          {
+            LINK_STATS_INC(link.recv);
+            snmp_add_ifinoctets(netif, tot_len);
+            if (nnucast)
+            {
+                snmp_inc_ifinnucastpkts(netif);
+            }
+            else
+            {
+                snmp_inc_ifinucastpkts(netif);
+            }
           }
         }
       }while(p!=NULL);
@@ -477,6 +572,7 @@ err_t ethernetif_init(struct netif *netif)
    * is available...) */
   netif->output = etharp_output;
   netif->linkoutput = low_level_output;
+  netif->ioctl = low_level_ioctl;
 
   /* initialize the hardware */
   low_level_init(netif);

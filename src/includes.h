@@ -68,6 +68,10 @@ extern "C" {
 
 #include "alientek_apollo_f429.h"
 
+#elif defined(STM32F429I_DISCOVERY)
+
+#include "stm32f429i_discovery_includes.h"
+
 #endif
 
 /*********************************************************************************************************

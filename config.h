@@ -42,6 +42,10 @@
 
 #include "src/board/ALIENTEK_APOLLO_F429/alientek_apollo_f429_cfg.h"
 
+#elif defined(STM32F429I_DISCOVERY)
+
+#include "src/board/STM32F429I-Discovery/stm32f429i_discovery_cfg.h"
+
 #endif
 
 #endif                                                                  /*  __BSP_CONFIG_H              */

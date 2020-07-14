@@ -212,17 +212,19 @@ static void ms_esp_at_net_init_done(ms_ptr_t arg)
     ms_esp_at_net_ap_t ap;
 
 #if (BSP_CFG_ESP8266_MODE & BSP_ESP8266_AUTO_JOIN) != 0
-    ret = ms_esp_at_auto_join(15U, &ap);
+    ret = ms_esp_at_auto_join(4U, &ap);
 #endif
 
 #if (BSP_CFG_ESP8266_MODE & BSP_ESP8266_MANUAL_CFG) != 0
     if (ret != MS_ERR_NONE) {
         ms_esp_at_connect_to_ap(1U, ap_list, MS_ARRAY_SIZE(ap_list), &ap);
     }
-#else
+#elif (BSP_CFG_ESP8266_MODE & BSP_ESP8266_SMART_CFG) != 0
     if (ret != MS_ERR_NONE) {
         ms_esp_at_smart_config(40U, &ap);
     }
+#else
+    (void)ret;
 #endif
 #endif
 }

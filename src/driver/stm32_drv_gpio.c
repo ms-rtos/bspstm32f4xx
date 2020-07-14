@@ -64,6 +64,9 @@ typedef struct {
     ms_uint8_t  mode;
     ms_uint8_t  pull;
     ms_uint8_t  speed;
+
+    void      (*isr)(ms_ptr_t arg);
+    ms_ptr_t    arg;
 } privinfo_t;
 
 /*
@@ -338,6 +341,10 @@ void HAL_GPIO_EXTI_Callback(ms_uint16_t GPIO_Pin)
 {
     privinfo_t *priv = gpio_exti_line_priv[__stm32_gpio_pin_to_pos(GPIO_Pin)];
 
+    if (priv->isr != MS_NULL){
+        priv->isr(priv->arg);
+    }
+
     __stm32_gpio_poll_notify(priv, POLLIN);
 }
 
@@ -553,6 +560,36 @@ ms_err_t stm32_gpio_dev_create(const char *path, ms_addr_t base, ms_uint16_t pin
     }
 
     return err;
+}
+
+/*
+ * Install GPIO ISR
+ */
+void stm32_gpio_isr_install(ms_uint16_t pin, void (*isr)(ms_ptr_t), ms_ptr_t arg)
+{
+    ms_uint8_t  pos  = __stm32_gpio_pin_to_pos(pin);
+    privinfo_t *priv = gpio_exti_line_priv[pos];
+
+    priv->arg = arg;
+    priv->isr = isr;
+}
+
+/*
+ * Enable or disable GPIO interrupt
+ */
+void stm32_gpio_int_enable(ms_uint16_t pin, ms_bool_t enable)
+{
+    ms_uint8_t   pos = __stm32_gpio_pin_to_pos(pin);
+    ms_arch_sr_t sr  = ms_arch_int_disable();
+
+    if (enable) {
+        HAL_NVIC_EnableIRQ(gpio_exti_line_irqn[pos]);
+
+    } else {
+        HAL_NVIC_DisableIRQ(gpio_exti_line_irqn[pos]);
+    }
+
+    ms_arch_int_resume(sr);
 }
 
 #endif                                                                  /*  BSP_CFG_GPIO_EN > 0         */
