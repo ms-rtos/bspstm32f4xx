@@ -92,7 +92,7 @@ static int __stm32_gpio_open(ms_ptr_t ctx, ms_io_file_t *file, int oflag, ms_mod
 {
     int ret;
 
-    if (ms_atomic_inc(MS_IO_DEV_REF(file)) == 2) {
+    if (ms_atomic_inc(MS_IO_DEV_REF(file)) == 1) {
         ret = 0;
 
     } else {

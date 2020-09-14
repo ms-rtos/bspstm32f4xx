@@ -43,7 +43,7 @@ static int __stm32_touch_open(ms_ptr_t ctx, ms_io_file_t *file, int oflag, ms_mo
 {
     int ret;
 
-    if (ms_atomic_inc(MS_IO_DEV_REF(file)) == 2) {
+    if (ms_atomic_inc(MS_IO_DEV_REF(file)) == 1) {
         if (BSP_TS_Init(BSP_CFG_LCD_WIDTH, BSP_CFG_LCD_HEIGHT) == TS_OK) {
             ret = 0;
         } else {

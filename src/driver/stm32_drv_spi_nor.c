@@ -132,7 +132,6 @@ ms_err_t stm32_spi_nor_dev_init(const char *path, const char *mnt_path)
 
 #else
     static ms_io_device_t spi_nor_dev;
-    static ms_io_mnt_t spi_nor_mnt;
     QSPI_Info info;
     ms_err_t err;
 
@@ -150,7 +149,7 @@ ms_err_t stm32_spi_nor_dev_init(const char *path, const char *mnt_path)
 
             err = ms_io_device_register(&spi_nor_dev, path, "ms_null", &stm32_spi_nor_cfg);
             if (err == MS_ERR_NONE) {
-                err = ms_io_mount(&spi_nor_mnt, mnt_path, path, MS_LITTLEFS_NAME, MS_NULL);
+                err = ms_io_mount(mnt_path, path, MS_LITTLEFS_NAME, MS_NULL);
             }
         } else {
             err = MS_ERR;

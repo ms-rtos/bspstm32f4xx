@@ -52,7 +52,7 @@ static int __stm32_smartcard_open(ms_ptr_t ctx, ms_io_file_t *file, int oflag, m
     int         ret;
     privinfo_t *priv = ctx;
 
-    if (ms_atomic_inc(MS_IO_DEV_REF(file)) == 2) {
+    if (ms_atomic_inc(MS_IO_DEV_REF(file)) == 1) {
 
         if (BSP_SmartCard_Init(&priv->context) == MS_ERR_NONE) {
             ret = 0;
@@ -148,8 +148,8 @@ static int __stm32_smartcard_ioctl(ms_ptr_t ctx, ms_io_file_t *file, int cmd, vo
             ms_smartcard_command_t  *sc_cmd = &sc_msg->command;
             ms_smartcard_responce_t *sc_rep = &sc_msg->responce;
 
-            if (ms_access_ok(sc_cmd->body.data, sc_cmd->body.lc, MS_ACCESS_R) &&
-                ms_access_ok(sc_rep->data, sc_rep->len, MS_ACCESS_W)) {
+            if ((!(sc_cmd->body.lc) || ms_access_ok(sc_cmd->body.data, sc_cmd->body.lc, MS_ACCESS_R)) &&
+                (!(sc_rep->len) || ms_access_ok(sc_rep->data, sc_rep->len, MS_ACCESS_W))) {
 
                 ret = __stm32_smartcard_send_msg(priv, sc_cmd, sc_rep);
 

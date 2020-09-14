@@ -230,7 +230,6 @@ static ms_io_driver_t stm32_sd_drv = {
 static void __stm32_sd_detect(ms_ptr_t arg)
 {
     static ms_io_device_t sd_blk_dev[1];
-    static ms_io_mnt_t sd_mnt[1];
     static ms_bool_t registed = MS_FALSE;
            ms_bool_t detected;
            ms_err_t  err;
@@ -245,11 +244,11 @@ static void __stm32_sd_detect(ms_ptr_t arg)
             registed = MS_TRUE;
         }
 
-        ms_io_mount(&sd_mnt[0], "/sd0", "/dev/sd_blk0", MS_FATFS_NAME, (ms_ptr_t)0);
+        ms_io_mount("/sd0", "/dev/sd_blk0", MS_FATFS_NAME, (ms_ptr_t)0);
 
     } else if (!detected && registed) {
 
-        ms_io_unmount("/sd0", MS_NULL, MS_TRUE);
+        ms_io_unmount("/sd0", MS_NULL);
 
         err = ms_io_device_unregister(&sd_blk_dev[0]);
         if (err == MS_ERR_NONE) {

@@ -241,7 +241,7 @@ static int __stm32_fb_open(ms_ptr_t ctx, ms_io_file_t *file, int oflag, ms_mode_
     privinfo_t *priv = ctx;
     int ret;
 
-    if (ms_atomic_inc(MS_IO_DEV_REF(file)) == 2) {
+    if (ms_atomic_inc(MS_IO_DEV_REF(file)) == 1) {
         if (BSP_LCD_Init() == LCD_OK) {
 #if BSP_CFG_LCD_BPP == 16U
             BSP_LCD_LayerRgb565Init(0, (ms_uint32_t)priv->fix.smem_start);

@@ -210,7 +210,6 @@ ms_err_t stm32_udisk_dev_create(void)
  */
 ms_err_t stm32_udisk_dev_mount(void)
 {
-    static ms_io_mnt_t udisk_mnt[1];
     ms_err_t err;
 
     ms_printk(MS_PK_INFO, "Wait USB DISK insert...");
@@ -220,7 +219,7 @@ ms_err_t stm32_udisk_dev_mount(void)
     if (err == MS_ERR_NONE) {
         ms_thread_sleep_s(2);
 
-        err = ms_io_mount(&udisk_mnt[0], "/udisk0", "/dev/udisk_blk0", MS_FATFS_NAME, (ms_ptr_t)0);
+        err = ms_io_mount("/udisk0", "/dev/udisk_blk0", MS_FATFS_NAME, (ms_ptr_t)0);
     } 
 
     return err;

@@ -143,7 +143,6 @@ static ms_flashfs_drv_t stm32_flash_drv = {
 
 ms_err_t stm32_flash_mount(const char *mnt_path)
 {
-    static ms_io_mnt_t flash_mnt;
     ms_flashfs_mount_param_t mount_param;
 
     mount_param.main_tbl_addr        = BSP_CFG_FLASHFS_MAIN_TBL_ADDR;
@@ -155,14 +154,13 @@ ms_err_t stm32_flash_mount(const char *mnt_path)
     mount_param.mkfs_param.max_file  = BSP_CFG_FLASHFS_MAX_FILE;
     mount_param.mkfs_param.unit_size = BSP_CFG_FLASHFS_UNIT_SIZE;
 
-    return ms_io_mount(&flash_mnt, mnt_path, MS_NULL, MS_FLASHFS_NAME, &mount_param);
+    return ms_io_mount(mnt_path, MS_NULL, MS_FLASHFS_NAME, &mount_param);
 }
 
 #else
 
 ms_err_t stm32_flash_mount(const char *mnt_path)
 {
-    static ms_io_mnt_t flash_mnt;
     ms_flashfs_mount_param_t mount_param;
 
     mount_param.main_tbl_addr        = BSP_CFG_FLASHFS_MAIN_TBL_ADDR;
@@ -172,7 +170,7 @@ ms_err_t stm32_flash_mount(const char *mnt_path)
     mount_param.readonly             = MS_TRUE;
     mount_param.calc_crc32           = ms_crc32;
 
-    return ms_io_mount(&flash_mnt, mnt_path, MS_NULL, MS_FLASHFS_NAME, &mount_param);
+    return ms_io_mount(mnt_path, MS_NULL, MS_FLASHFS_NAME, &mount_param);
 }
 
 #endif
