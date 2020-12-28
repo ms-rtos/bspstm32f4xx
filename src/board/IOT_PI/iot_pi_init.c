@@ -228,7 +228,6 @@ static void ms_esp_at_net_init_done(ms_ptr_t arg)
 #endif
 #endif
 }
-#endif
 
 #if MS_CFG_SHELL_MODULE_EN > 0
 /**
@@ -248,6 +247,7 @@ static void __ms_shell_esp8266_smartcfg(int argc, char *argv[], const ms_shell_i
 }
 
 MS_SHELL_CMD(smartcfg, __ms_shell_esp8266_smartcfg, "ESP8266 smart configure", __ms_shell_cmd_smartcfg);
+#endif
 #endif
 
 /**
@@ -321,7 +321,7 @@ static void boot_thread(ms_ptr_t arg)
     ms_apps_start("ms-boot-param.dtb");
 #endif
 
-    ms_process_create("iotpi_sddc", (ms_const_ptr_t)0x08040000, 65536, 4096, 9, 0 , 0, MS_NULL, MS_NULL, MS_NULL);
+    ms_process_create("iotpi_sddc", 0x08040000, 65536, 4096, 9, 0 , 0, MS_NULL, MS_NULL, MS_NULL);
 }
 
 #if BSP_CFG_HW_TEST_EN > 0
