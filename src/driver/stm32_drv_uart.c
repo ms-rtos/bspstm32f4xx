@@ -566,7 +566,7 @@ static ms_bool_t __stm32_uart_except_check(ms_ptr_t ctx)
  */
 static int __stm32_uart_poll_notify(privinfo_t *priv, ms_pollevent_t event)
 {
-    return ms_io_poll_notify_heaper(priv->slots, MS_ARRAY_SIZE(priv->slots), event);
+    return ms_io_poll_notify_helper(priv->slots, MS_ARRAY_SIZE(priv->slots), event);
 }
 
 /*
@@ -576,7 +576,7 @@ static int __stm32_uart_poll(ms_ptr_t ctx, ms_io_file_t *file, ms_pollfd_t *fds,
 {
     privinfo_t *priv = ctx;
 
-    return ms_io_poll_heaper(fds, priv->slots, MS_ARRAY_SIZE(priv->slots), setup, ctx,
+    return ms_io_poll_helper(fds, priv->slots, MS_ARRAY_SIZE(priv->slots), setup, ctx,
                              __stm32_uart_readable_check, __stm32_uart_writable_check, __stm32_uart_except_check);
 }
 

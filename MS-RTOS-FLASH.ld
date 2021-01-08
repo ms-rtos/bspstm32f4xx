@@ -44,6 +44,13 @@ SECTIONS
     *(.rodata)         /* .rodata sections (constants, strings, etc.) */
     *(.rodata*)        /* .rodata* sections (constants, strings, etc.) */
     
+#ifdef MS_CFG_LOADER_EN
+    . = ALIGN(8);
+    PROVIDE (__ms_sym_tbl_start__ = .);
+    KEEP(*(.ms_sym_tbl*))
+    PROVIDE (__ms_sym_tbl_end__ = .);
+#endif
+    
     . = ALIGN(8);
     PROVIDE (__ms_shell_cmd_start__ = .);
     KEEP(*(.ms_shell_cmd*))

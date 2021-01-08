@@ -331,7 +331,7 @@ static int __stm32_gpio_ioctl(ms_ptr_t ctx, ms_io_file_t *file, int cmd, void *a
  */
 static int __stm32_gpio_poll_notify(privinfo_t *priv, ms_pollevent_t event)
 {
-    return ms_io_poll_notify_heaper(priv->slots, MS_ARRAY_SIZE(priv->slots), event);
+    return ms_io_poll_notify_helper(priv->slots, MS_ARRAY_SIZE(priv->slots), event);
 }
 
 /*
@@ -495,7 +495,7 @@ static int __stm32_gpio_poll(ms_ptr_t ctx, ms_io_file_t *file, ms_pollfd_t *fds,
 {
     privinfo_t *priv = ctx;
 
-    return ms_io_poll_heaper(fds, priv->slots, MS_ARRAY_SIZE(priv->slots), setup, ctx,
+    return ms_io_poll_helper(fds, priv->slots, MS_ARRAY_SIZE(priv->slots), setup, ctx,
                              __stm32_gpio_readable_check, MS_NULL, MS_NULL);;
 }
 
