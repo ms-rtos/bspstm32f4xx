@@ -29,17 +29,6 @@
 
 #if BSP_CFG_FB_EN > 0
 
-#if BSP_CFG_LCD_BPP == 16U
-#define LCD_BYTE_PER_PIXEL  2U
-#else
-#define LCD_BYTE_PER_PIXEL  4U
-#endif
-
-#if defined(DMA2D)
-DMA2D_HandleTypeDef         hdma2d;
-ms_handle_t                 hdma2d_sembid;
-#endif
-
 /*
  * Private info
  */
@@ -48,7 +37,18 @@ typedef struct {
     ms_fb_fix_screeninfo_t  fix;
 } privinfo_t;
 
+static uint16_t lcd_int_active_line;
+static uint16_t lcd_int_porch_line;
+
+#if BSP_CFG_LCD_BPP == 16U
+#define LCD_BYTE_PER_PIXEL  2U
+#else
+#define LCD_BYTE_PER_PIXEL  4U
+#endif
+
 #if defined(DMA2D)
+DMA2D_HandleTypeDef         hdma2d;
+
 static HAL_StatusTypeDef __stm32_dma2d_set_mode(DMA2D_HandleTypeDef *hdma2d, ms_uint32_t mode, ms_uint32_t color, ms_uint32_t offset)
 {
     assert_param(IS_DMA2D_ALL_INSTANCE(hdma2d->Instance));
@@ -62,12 +62,11 @@ static HAL_StatusTypeDef __stm32_dma2d_set_mode(DMA2D_HandleTypeDef *hdma2d, ms_
 
 static void __stm32_dma2d_xfer_done_cb(DMA2D_HandleTypeDef *hdma2d)
 {
-    ms_semb_post(hdma2d_sembid);
+    ms_process_sigqueue(1, MS_FB_SIGNAL_DMA2D_DONE, MS_TIMEOUT_NO_WAIT);
 }
 
 static void __stm32_dma2d_xfer_error_cb(DMA2D_HandleTypeDef *hdma2d)
 {
-
 }
 
 static void __stm32_dma2d_data_copy(DMA2D_HandleTypeDef *hdma2d, ms_fb_blitop_arg_t *blitop)
@@ -153,7 +152,9 @@ static void __stm32_dma2d_data_copy(DMA2D_HandleTypeDef *hdma2d, ms_fb_blitop_ar
 
     // If the framebuffer is placed in Write Through cached memory (e.g. SRAM) then we need
     // to flush the Dcache prior to letting DMA2D accessing it.
+    ms_arch_sr_t sr = ms_arch_int_disable();
     SCB_CleanInvalidateDCache();
+    ms_arch_int_resume(sr);
 
     if (blendingImage || blendingText) {
         HAL_DMA2D_BlendingStart_IT(hdma2d, (ms_addr_t)blitop->src,
@@ -220,7 +221,9 @@ static void __stm32_dma2d_data_fill(DMA2D_HandleTypeDef *hdma2d, ms_fb_blitop_ar
 
     // If the framebuffer is placed in Write Through cached memory (e.g. SRAM) then we need
     // to flush the Dcache prior to letting DMA2D accessing it.
+    ms_arch_sr_t sr = ms_arch_int_disable();
     SCB_CleanInvalidateDCache();
+    ms_arch_int_resume(sr);
 
     if (dma2dTransferMode == DMA2D_M2M_BLEND) {
         HAL_DMA2D_BlendingStart_IT(hdma2d, (ms_addr_t)blitop->dst,
@@ -232,6 +235,22 @@ static void __stm32_dma2d_data_fill(DMA2D_HandleTypeDef *hdma2d, ms_fb_blitop_ar
     }
 }
 #endif
+
+void HAL_LTDC_LineEventCallback(LTDC_HandleTypeDef *hltdc)
+{
+    if (LTDC->LIPCR == lcd_int_active_line) {
+        //entering active area
+        HAL_LTDC_ProgramLineEvent(hltdc, lcd_int_porch_line);
+
+        ms_process_sigqueue(1, MS_FB_SIGNAL_ACTIVE_AREA_ENTER, MS_TIMEOUT_NO_WAIT);
+
+    } else {
+        //exiting active area
+        HAL_LTDC_ProgramLineEvent(hltdc, lcd_int_active_line);
+
+        ms_process_sigqueue(1, MS_FB_SIGNAL_ACTIVE_AREA_EXIT, MS_TIMEOUT_NO_WAIT);
+    }
+}
 
 /*
  * Open device
@@ -257,10 +276,15 @@ static int __stm32_fb_open(ms_ptr_t ctx, ms_io_file_t *file, int oflag, ms_mode_
             hdma2d.Instance = DMA2D;
 
             hdma2d.Init.Mode = DMA2D_M2M;
+#if BSP_CFG_LCD_BPP == 16U
+            hdma2d.Init.ColorMode = DMA2D_OUTPUT_RGB565;
+            hdma2d.LayerCfg[1].InputColorMode = DMA2D_INPUT_RGB565;
+#else
             hdma2d.Init.ColorMode = DMA2D_OUTPUT_ARGB8888;
+            hdma2d.LayerCfg[1].InputColorMode = DMA2D_INPUT_ARGB8888;
+#endif
             hdma2d.Init.OutputOffset = 0;
             hdma2d.LayerCfg[1].InputOffset = 0;
-            hdma2d.LayerCfg[1].InputColorMode = DMA2D_INPUT_ARGB8888;
             hdma2d.LayerCfg[1].AlphaMode = DMA2D_NO_MODIF_ALPHA;
             hdma2d.LayerCfg[1].InputAlpha = 0;
 
@@ -270,10 +294,7 @@ static int __stm32_fb_open(ms_ptr_t ctx, ms_io_file_t *file, int oflag, ms_mode_
 
             hdma2d.XferCpltCallback  = __stm32_dma2d_xfer_done_cb;
             hdma2d.XferErrorCallback = __stm32_dma2d_xfer_error_cb;
-
-            NVIC_EnableIRQ(DMA2D_IRQn);
 #endif
-
             ret = 0;
 
         } else {
@@ -300,6 +321,7 @@ static int __stm32_fb_close(ms_ptr_t ctx, ms_io_file_t *file)
         HAL_DMA2D_DeInit(&hdma2d);
         NVIC_DisableIRQ(DMA2D_IRQn);
 #endif
+        NVIC_DisableIRQ(LTDC_IRQn);
 
         BSP_LCD_DisplayOff();
         (void)BSP_LCD_DeInit();
@@ -337,12 +359,47 @@ static int __stm32_fb_ioctl(ms_ptr_t ctx, ms_io_file_t *file, int cmd, void *arg
         }
         break;
 
+    case MS_FB_CMD_GET_FB:
+        ret = 0;
+        break;
+
+    case MS_FB_CMD_SET_FB:
+        ret = 0;
+        break;
+
+    case MS_FB_CMD_CFG_INTS:
+        NVIC_SetPriority(DMA2D_IRQn, 9);
+        NVIC_SetPriority(LTDC_IRQn, 9);
+        ret = 0;
+        break;
+
+    case MS_FB_CMD_ENABLE_INTS:
+        NVIC_EnableIRQ(DMA2D_IRQn);
+        NVIC_EnableIRQ(LTDC_IRQn);
+        ret = 0;
+        break;
+
+    case MS_FB_CMD_DISABLE_INTS:
+        NVIC_DisableIRQ(DMA2D_IRQn);
+        NVIC_DisableIRQ(LTDC_IRQn);
+        ret = 0;
+        break;
+
+    case MS_FB_CMD_ENABLE_LCDC_INT:
+        lcd_int_active_line = (LTDC->BPCR & 0x7FF) - 1;
+        lcd_int_porch_line  = (LTDC->AWCR & 0x7FF) - 1;
+
+        /* Sets the Line Interrupt position */
+        LTDC->LIPCR = lcd_int_active_line;
+        /* Line Interrupt Enable            */
+        LTDC->IER |= LTDC_IER_LIE;
+        ret = 0;
+        break;
+
 #if defined(DMA2D)
     case MS_FB_CMD_DATA_COPY_OP:
         if (ms_access_ok(arg, sizeof(ms_fb_data_copy_arg_t), MS_ACCESS_R)) {
             ms_fb_data_copy_arg_t *copy_arg = arg;
-
-            hdma2d_sembid = copy_arg->sembid;
 
             __stm32_dma2d_data_copy(&hdma2d, copy_arg);
             ret = 0;
@@ -356,8 +413,6 @@ static int __stm32_fb_ioctl(ms_ptr_t ctx, ms_io_file_t *file, int cmd, void *arg
     case MS_FB_CMD_DATA_FILL_OP:
         if (ms_access_ok(arg, sizeof(ms_fb_data_fill_arg_t), MS_ACCESS_R)) {
             ms_fb_data_fill_arg_t *fill_arg = arg;
-
-            hdma2d_sembid = fill_arg->sembid;
 
             __stm32_dma2d_data_fill(&hdma2d, fill_arg);
             ret = 0;
