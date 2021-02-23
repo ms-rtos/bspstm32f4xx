@@ -37,8 +37,9 @@ typedef struct {
     ms_fb_fix_screeninfo_t  fix;
 } privinfo_t;
 
-static uint16_t lcd_int_active_line;
-static uint16_t lcd_int_porch_line;
+static uint16_t stm32_fb_lcd_int_active_line;
+static uint16_t stm32_fb_lcd_int_porch_line;
+static ms_pid_t stm32_fb_pid;
 
 #if BSP_CFG_LCD_BPP == 16U
 #define LCD_BYTE_PER_PIXEL  2U
@@ -62,7 +63,7 @@ static HAL_StatusTypeDef __stm32_dma2d_set_mode(DMA2D_HandleTypeDef *hdma2d, ms_
 
 static void __stm32_dma2d_xfer_done_cb(DMA2D_HandleTypeDef *hdma2d)
 {
-    ms_process_sigqueue(1, MS_FB_SIGNAL_DMA2D_DONE, MS_TIMEOUT_NO_WAIT);
+    ms_process_sigqueue(stm32_fb_pid, MS_FB_SIGNAL_DMA2D_DONE, MS_TIMEOUT_NO_WAIT);
 }
 
 static void __stm32_dma2d_xfer_error_cb(DMA2D_HandleTypeDef *hdma2d)
@@ -238,17 +239,17 @@ static void __stm32_dma2d_data_fill(DMA2D_HandleTypeDef *hdma2d, ms_fb_blitop_ar
 
 void HAL_LTDC_LineEventCallback(LTDC_HandleTypeDef *hltdc)
 {
-    if (LTDC->LIPCR == lcd_int_active_line) {
+    if (LTDC->LIPCR == stm32_fb_lcd_int_active_line) {
         //entering active area
-        HAL_LTDC_ProgramLineEvent(hltdc, lcd_int_porch_line);
+        HAL_LTDC_ProgramLineEvent(hltdc, stm32_fb_lcd_int_porch_line);
 
-        ms_process_sigqueue(1, MS_FB_SIGNAL_ACTIVE_AREA_ENTER, MS_TIMEOUT_NO_WAIT);
+        ms_process_sigqueue(stm32_fb_pid, MS_FB_SIGNAL_ACTIVE_AREA_ENTER, MS_TIMEOUT_NO_WAIT);
 
     } else {
         //exiting active area
-        HAL_LTDC_ProgramLineEvent(hltdc, lcd_int_active_line);
+        HAL_LTDC_ProgramLineEvent(hltdc, stm32_fb_lcd_int_active_line);
 
-        ms_process_sigqueue(1, MS_FB_SIGNAL_ACTIVE_AREA_EXIT, MS_TIMEOUT_NO_WAIT);
+        ms_process_sigqueue(stm32_fb_pid, MS_FB_SIGNAL_ACTIVE_AREA_EXIT, MS_TIMEOUT_NO_WAIT);
     }
 }
 
@@ -295,6 +296,8 @@ static int __stm32_fb_open(ms_ptr_t ctx, ms_io_file_t *file, int oflag, ms_mode_
             hdma2d.XferCpltCallback  = __stm32_dma2d_xfer_done_cb;
             hdma2d.XferErrorCallback = __stm32_dma2d_xfer_error_cb;
 #endif
+
+            stm32_fb_pid = ms_process_self();
             ret = 0;
 
         } else {
@@ -386,11 +389,11 @@ static int __stm32_fb_ioctl(ms_ptr_t ctx, ms_io_file_t *file, int cmd, void *arg
         break;
 
     case MS_FB_CMD_ENABLE_LCDC_INT:
-        lcd_int_active_line = (LTDC->BPCR & 0x7FF) - 1;
-        lcd_int_porch_line  = (LTDC->AWCR & 0x7FF) - 1;
+        stm32_fb_lcd_int_active_line = (LTDC->BPCR & 0x7FF) - 1;
+        stm32_fb_lcd_int_porch_line  = (LTDC->AWCR & 0x7FF) - 1;
 
         /* Sets the Line Interrupt position */
-        LTDC->LIPCR = lcd_int_active_line;
+        LTDC->LIPCR = stm32_fb_lcd_int_active_line;
         /* Line Interrupt Enable            */
         LTDC->IER |= LTDC_IER_LIE;
         ret = 0;
