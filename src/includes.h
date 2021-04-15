@@ -79,12 +79,14 @@ extern "C" {
 *********************************************************************************************************/
 
 void SystemClock_Config(void);
+void Error_Handler(void);
 
 const ms_flashfs_partition_t *ms_bsp_flash_part_info(void);
 ms_uint32_t ms_bsp_flash_data_sector(ms_uint32_t data_sector_id);
 ms_uint32_t ms_bsp_flash_addr_to_sector(ms_addr_t addr);
 
-void        ms_bsp_printk_init(void);
+void ms_bsp_printk_init(void);
+void ms_bsp_gpios_reset(void);
 
 #ifdef __cplusplus
 }

@@ -10,37 +10,30 @@
 **
 **--------------文件信息--------------------------------------------------------------------------------
 **
-** 文   件   名: stm32_drv_spi.h
+** 文   件   名: stm32_drv_adc.h
 **
-** 创   建   人:
+** 创   建   人: wangjie
 **
-** 文件创建日期: 2020 年 06 月 01 日
+** 文件创建日期: 2020 年 08 月 10 日
 **
-** 描        述: STM32 芯片 SPI 总线驱动头文件
+** 描        述: STM32 芯片 ADC 驱动头文件
 *********************************************************************************************************/
 
-#ifndef STM32_DRV_SPI_H
-#define STM32_DRV_SPI_H
+#ifndef STM32_DRV_ADC_H
+#define STM32_DRV_ADC_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/*
- * Transfer mode
- */
-#define SPI_POLL_MODE                 1
-#define SPI_IT_MODE                   2
-#define SPI_DMA_MODE                  3
-
-ms_err_t stm32_spi_bus_dev_create(const char *path, ms_uint8_t channel, ms_uint8_t trans_mode);
-void     stm32_spi_irq_handler(ms_uint8_t channel);
+ms_err_t stm32_adc_ex_drv_register(void);
+ms_err_t stm32_adc_ex_dev_create(const char *path);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif
+#endif                                                                  /*  STM32_DRV_UART_H            */
 /*********************************************************************************************************
   END
 *********************************************************************************************************/

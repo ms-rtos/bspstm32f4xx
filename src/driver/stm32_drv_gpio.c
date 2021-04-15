@@ -289,8 +289,8 @@ static int __stm32_gpio_ioctl(ms_ptr_t ctx, ms_io_file_t *file, int cmd, void *a
                 /*
                  * Save param in priv
                  */
-                priv->mode = param->mode;
-                priv->pull = param->pull;
+                priv->mode  = param->mode;
+                priv->pull  = param->pull;
                 priv->speed = param->speed;
 
                 ret = 0;
@@ -307,8 +307,8 @@ static int __stm32_gpio_ioctl(ms_ptr_t ctx, ms_io_file_t *file, int cmd, void *a
     case MS_GPIO_CMD_GET_PARAM:
         if (ms_access_ok(arg, sizeof(ms_gpio_param_t), MS_ACCESS_W)) {
             param = (ms_gpio_param_t *)arg;
-            param->mode = priv->mode;
-            param->pull = priv->speed;
+            param->mode  = priv->mode;
+            param->pull  = priv->pull;
             param->speed = priv->speed;
             ret = 0;
         } else {
@@ -500,16 +500,37 @@ static int __stm32_gpio_poll(ms_ptr_t ctx, ms_io_file_t *file, ms_pollfd_t *fds,
 }
 
 /*
+ * Power management
+ */
+#if MS_CFG_KERN_PM_EN > 0
+static ms_err_t __stm32_gpio_suspend(ms_ptr_t ctx, ms_pm_sleep_mode_t sleep_mode)
+{
+    //TODO:
+
+    return MS_ERR_NONE;
+}
+
+static void __stm32_gpio_resume(ms_ptr_t ctx, ms_pm_sleep_mode_t sleep_mode)
+{
+    //TODO:
+}
+#endif
+
+/*
  * Device operating function set
  */
 static const ms_io_driver_ops_t stm32_gpio_drv_ops = {
-        .type   = MS_IO_DRV_TYPE_CHR,
-        .open   = __stm32_gpio_open,
-        .close  = __stm32_gpio_close,
-        .read   = __stm32_gpio_read,
-        .write  = __stm32_gpio_write,
-        .ioctl  = __stm32_gpio_ioctl,
-        .poll   = __stm32_gpio_poll,
+        .type    = MS_IO_DRV_TYPE_CHR,
+        .open    = __stm32_gpio_open,
+        .close   = __stm32_gpio_close,
+        .read    = __stm32_gpio_read,
+        .write   = __stm32_gpio_write,
+        .ioctl   = __stm32_gpio_ioctl,
+        .poll    = __stm32_gpio_poll,
+#if MS_CFG_KERN_PM_EN > 0
+        .suspend = __stm32_gpio_suspend,
+        .resume  = __stm32_gpio_resume,
+#endif
 };
 
 /*

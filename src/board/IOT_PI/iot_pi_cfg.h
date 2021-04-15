@@ -107,14 +107,27 @@
 #define BSP_CFG_FLASH_EN            0
 #define BSP_CFG_GPIO_EN             1
 #define BSP_CFG_I2C_EN              1
-#define BSP_CFG_RTC_EN              0
+#define BSP_CFG_RTC_EN              1
 #define BSP_CFG_UART_EN             1
 #define BSP_CFG_HW_TEST_EN          0
+#define BSP_CFG_SPI_EN              1
+
+#define BSP_CFG_TEST_CURRENT_MEASU  0
 
 #if BSP_CFG_HW_TEST_EN > 0
 #undef  BSP_CFG_CONSOLE_DEV
 #define BSP_CFG_CONSOLE_DEV         BSP_CONSOLE_UART
 #endif
+
+/*********************************************************************************************************
+  RTC ≈‰÷√
+*********************************************************************************************************/
+
+#define BSP_CFG_RTC_ASYNCH_PREDIV   0x7F
+#define BSP_CFG_RTC_SYNCH_PREDIV    0x00FF
+
+#define RTC_ASYNCH_PREDIV           0x7F
+#define RTC_SYNCH_PREDIV            0x0130
 
 /*********************************************************************************************************
   ø¥√≈π∑≈‰÷√
@@ -156,13 +169,6 @@
 
 #define BSP_CFG_FLASHFS_MAX_FILE            8
 #define BSP_CFG_FLASHFS_UNIT_SIZE           (16 * 1024)
-
-/*********************************************************************************************************
-  RTC ≈‰÷√
-*********************************************************************************************************/
-
-#define BSP_CFG_RTC_ASYNCH_PREDIV  0x7F   /* LSE as RTC clock */
-#define BSP_CFG_RTC_SYNCH_PREDIV   0x00FF /* LSE as RTC clock */
 
 #endif                                                                  /*  IOT_PI_CFG_H                */
 /*********************************************************************************************************

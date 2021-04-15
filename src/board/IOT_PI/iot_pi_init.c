@@ -51,8 +51,9 @@ void SystemClock_Config(void)
     __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
     /* Enable HSE Oscillator and activate PLL with HSE as source */
-    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE | RCC_OSCILLATORTYPE_LSI;
     RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+    RCC_OscInitStruct.LSIState = RCC_LSI_ON;
     RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
     RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
     RCC_OscInitStruct.PLL.PLLM = 8;
@@ -80,6 +81,99 @@ void SystemClock_Config(void)
     }
 }
 #endif
+
+/**
+  * @brief  This function is executed in case of error occurrence.
+  * @param  None
+  * @retval None
+  */
+void Error_Handler(void) {
+    while (1) {
+        /* Infinite loop */
+    };
+}
+
+/*
+ * @brief Configure all GPIO as analog to reduce current consumption on non used IOs
+ */
+void ms_bsp_gpios_reset(void)
+{
+    GPIO_InitTypeDef GPIO_InitStruct;
+
+    /* Configure all GPIO as analog to reduce current consumption on non used IOs */
+    /* Enable GPIOs clock */
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
+    __HAL_RCC_GPIOC_CLK_ENABLE();
+    __HAL_RCC_GPIOD_CLK_ENABLE();
+    __HAL_RCC_GPIOH_CLK_ENABLE();
+
+    GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+    GPIO_InitStruct.Speed = GPIO_SPEED_HIGH;
+    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Pin = GPIO_PIN_All;
+
+    //HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+    HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+    //HAL_GPIO_Init(GPIOH, &GPIO_InitStruct);
+
+    /* Disable GPIOs clock */
+    __HAL_RCC_GPIOA_CLK_DISABLE();
+    __HAL_RCC_GPIOB_CLK_DISABLE();
+    __HAL_RCC_GPIOC_CLK_DISABLE();
+    __HAL_RCC_GPIOD_CLK_DISABLE();
+    __HAL_RCC_GPIOH_CLK_DISABLE();
+}
+
+/**
+  * @brief  Configures system clock after wake-up from STOP: enable HSI, PLL
+  *         and select PLL as system clock source.
+  * @param  None
+  * @retval None
+  */
+void SYSCLKConfig_STOP(void)
+{
+  RCC_ClkInitTypeDef RCC_ClkInitStruct;
+  RCC_OscInitTypeDef RCC_OscInitStruct;
+  uint32_t pFLatency = 0;
+
+  /* Get the Oscillators configuration according to the internal RCC registers */
+  HAL_RCC_GetOscConfig(&RCC_OscInitStruct);
+
+  /* After wake-up from STOP reconfigure the system clock: Enable HSI and PLL */
+  RCC_OscInitStruct.OscillatorType       = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState             = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue  = (uint32_t)0x10;   /* Default HSI calibration trimming value */;
+  RCC_OscInitStruct.PLL.PLLState         = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource        = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM             = 16;
+  RCC_OscInitStruct.PLL.PLLN             = 160;
+  RCC_OscInitStruct.PLL.PLLP             = RCC_PLLP_DIV2;
+  RCC_OscInitStruct.PLL.PLLQ             = 7;
+  RCC_OscInitStruct.PLL.PLLR             = 2;
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
+    /* Initialization Error */
+    Error_Handler();
+  }
+
+  /* Get the Clocks configuration according to the internal RCC registers */
+  HAL_RCC_GetClockConfig(&RCC_ClkInitStruct, &pFLatency);
+
+  /* Select PLL as system clock source and configure the HCLK, PCLK1 and PCLK2
+     clocks dividers */
+  RCC_ClkInitStruct.ClockType       = (RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2);
+  RCC_ClkInitStruct.SYSCLKSource    = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.AHBCLKDivider   = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider  = RCC_HCLK_DIV2;
+  RCC_ClkInitStruct.APB2CLKDivider  = RCC_HCLK_DIV1;
+  if(HAL_RCC_ClockConfig(&RCC_ClkInitStruct, pFLatency) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
 
 /**
  * @brief Initial printk interface.
@@ -153,6 +247,7 @@ void ms_bsp_shutdown(void)
 #if (MS_CFG_SHELL_MODULE_EN > 0) &&  (BSP_CFG_CONSOLE_DEV != BSP_CONSOLE_NULL)
 /**
  * @brief Shell thread.
+ * @note  Tick-less mode is useless while using 'BSP_CONSOLE_TRACE' as 'BSP_CFG_CONSOLE_DEV'
  *
  * @param[in] arg Shell thread argument
  *
@@ -228,8 +323,9 @@ static void ms_esp_at_net_init_done(ms_ptr_t arg)
 #endif
 #endif
 }
+#endif
 
-#if MS_CFG_SHELL_MODULE_EN > 0
+#if MS_CFG_SHELL_MODULE_EN > 0 && BSP_CFG_ESP8266_EN > 0
 /**
  * @brief smartcfg command.
  *
@@ -247,7 +343,6 @@ static void __ms_shell_esp8266_smartcfg(int argc, char *argv[], const ms_shell_i
 }
 
 MS_SHELL_CMD(smartcfg, __ms_shell_esp8266_smartcfg, "ESP8266 smart configure", __ms_shell_cmd_smartcfg);
-#endif
 #endif
 
 /**
@@ -321,7 +416,7 @@ static void boot_thread(ms_ptr_t arg)
     ms_apps_start("ms-boot-param.dtb");
 #endif
 
-    ms_process_create("iotpi_sddc", 0x08040000, 65536, 4096, 9, 0 , 0, MS_NULL, MS_NULL, MS_NULL);
+    ms_process_create("iotpi_sddc", (ms_addr_t)0x08040000, 65536, 4096, 9, 0 , 0, MS_NULL, MS_NULL, MS_NULL);
 }
 
 #if BSP_CFG_HW_TEST_EN > 0
@@ -684,73 +779,6 @@ void bsp_init(void)
     while (MS_TRUE) {
     }
 }
-
-#if BSP_CFG_I2C_EN > 0
-
-/**
-  * @brief I2C MSP Initialization
-  *        This function configures the hardware resources used in this example:
-  *           - Peripheral's clock enable
-  *           - Peripheral's GPIO Configuration
-  *           - DMA configuration for transmission request by peripheral
-  *           - NVIC configuration for DMA interrupt request enable
-  * @param hi2c: I2C handle pointer
-  * @retval None
-  */
-void HAL_I2C_MspInit(I2C_HandleTypeDef *hi2c)
-{
-    GPIO_InitTypeDef  GPIO_InitStruct;
-
-    if (hi2c->Instance == I2C3) {
-        /* Enable GPIO TX/RX clock */
-        __HAL_RCC_GPIOA_CLK_ENABLE();
-        __HAL_RCC_GPIOB_CLK_ENABLE();
-
-        /* Enable I2C3 clock */
-        __HAL_RCC_I2C3_CLK_ENABLE();
-
-        /* I2C TX GPIO pin configuration  */
-        GPIO_InitStruct.Pin       = GPIO_PIN_8;
-        GPIO_InitStruct.Mode      = GPIO_MODE_AF_OD;
-        GPIO_InitStruct.Pull      = GPIO_PULLUP;
-        GPIO_InitStruct.Speed     = GPIO_SPEED_FAST;
-        GPIO_InitStruct.Alternate = GPIO_AF4_I2C3;
-
-        HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-        /* I2C TX GPIO pin configuration  */
-        GPIO_InitStruct.Pin       = GPIO_PIN_4;
-        GPIO_InitStruct.Mode      = GPIO_MODE_AF_OD;
-        GPIO_InitStruct.Pull      = GPIO_PULLUP;
-        GPIO_InitStruct.Speed     = GPIO_SPEED_FAST;
-        GPIO_InitStruct.Alternate = GPIO_AF9_I2C3;
-
-        HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
-    }
-}
-
-/**
-  * @brief I2C MSP De-Initialization
-  *        This function frees the hardware resources used in this example:
-  *          - Disable the Peripheral's clock
-  *          - Revert GPIO, DMA and NVIC configuration to their default state
-  * @param hi2c: I2C handle pointer
-  * @retval None
-  */
-void HAL_I2C_MspDeInit(I2C_HandleTypeDef *hi2c)
-{
-    if (hi2c->Instance == I2C3) {
-        __HAL_RCC_I2C3_FORCE_RESET();
-        __HAL_RCC_I2C3_RELEASE_RESET();
-
-        /* Configure I2C Tx as alternate function  */
-        HAL_GPIO_DeInit(GPIOA, GPIO_PIN_8);
-        HAL_GPIO_DeInit(GPIOB, GPIO_PIN_4);
-    }
-}
-
-#endif
-
 /*********************************************************************************************************
   END
 *********************************************************************************************************/

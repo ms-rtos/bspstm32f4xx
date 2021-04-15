@@ -45,6 +45,8 @@ src/driver/stm32_drv_touch.c \
 src/driver/stm32_drv_wdg.c \
 src/driver/stm32_drv_uart.c \
 src/driver/stm32_drv_rtc.c \
+src/driver/stm32_drv_spi.c \
+src/board/IOT_PI/iot_pi_msp.c \
 src/board/IOT_PI/iot_pi_init.c \
 src/board/IOT_PI/iot_pi_irq.c \
 src/board/IOT_PI/iot_pi_sd.c \

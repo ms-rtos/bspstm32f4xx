@@ -47,7 +47,7 @@ SECTIONS
 #ifdef MS_CFG_LOADER_EN
     . = ALIGN(8);
     PROVIDE (__ms_sym_tbl_start__ = .);
-    KEEP(*(.ms_sym_tbl*))
+    KEEP (*(SORT(.ms_sym_tbl.*)))
     PROVIDE (__ms_sym_tbl_end__ = .);
 #endif
     

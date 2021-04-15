@@ -757,17 +757,38 @@ void stm32_uart_irq_handler(ms_uint8_t channel)
 }
 
 /*
+ * Power management
+ */
+#if MS_CFG_KERN_PM_EN > 0
+static ms_err_t __stm32_uart_suspend(ms_ptr_t ctx, ms_pm_sleep_mode_t sleep_mode)
+{
+    //TODO:
+
+    return MS_ERR_NONE;
+}
+
+static void __stm32_uart_resume(ms_ptr_t ctx, ms_pm_sleep_mode_t sleep_mode)
+{
+    //TODO:
+}
+#endif
+
+/*
  * Device operating function set
  */
 static const ms_io_driver_ops_t stm32_uart_drv_ops = {
-        .type   = MS_IO_DRV_TYPE_CHR,
-        .open   = __stm32_uart_open,
-        .close  = __stm32_uart_close,
-        .write  = __stm32_uart_write,
-        .read   = __stm32_uart_read,
-        .ioctl  = __stm32_uart_ioctl,
-        .fstat  = __stm32_uart_fstat,
-        .poll   = __stm32_uart_poll,
+        .type    = MS_IO_DRV_TYPE_CHR,
+        .open    = __stm32_uart_open,
+        .close   = __stm32_uart_close,
+        .write   = __stm32_uart_write,
+        .read    = __stm32_uart_read,
+        .ioctl   = __stm32_uart_ioctl,
+        .fstat   = __stm32_uart_fstat,
+        .poll    = __stm32_uart_poll,
+#if MS_CFG_KERN_PM_EN > 0
+        .suspend = __stm32_uart_suspend,
+        .resume  = __stm32_uart_resume,
+#endif
 };
 
 /*

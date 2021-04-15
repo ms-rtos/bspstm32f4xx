@@ -26,41 +26,35 @@
 
 #include <string.h>
 #include "includes.h"
+#include "stm32_drv_spi.h"
 
 #if BSP_CFG_SPI_EN > 0
 
-#define SPI_POLL_MODE                 1
-#define SPI_IT_MODE                   2
-#define SPI_DMA_MODE                  3
-
-#define SPI_TRANS_MODE                SPI_POLL_MODE
-
 #define __DIV_ROUND_UP(n, d)          (((n) + (d) - 1) / (d))
 #define __STM32_SPI_MAX_CHANNEL       (6U)
-#define __PCLK1_MAX                   50000000
-#define __PCLK2_MAX                   100000000
 
 /*
  * Private info
  */
 typedef struct {
-    SPI_HandleTypeDef  spi_handler;
-    IRQn_Type          irq;
-    ms_spi_param_t     param;
-    ms_handle_t        sembid;
+    SPI_HandleTypeDef spi_handler;
+    ms_uint8_t        trans_mode;
+    IRQn_Type         irq;
+    ms_spi_param_t    param;
+    ms_handle_t       sembid;
 } privinfo_t;
 
 /*
  * SPI baud rate to prescaler
  */
-static void __stm32_spi_prescaler_set(SPI_TypeDef *instance,  ms_uint32_t baud_rate, ms_uint32_t *prescaler)
+static void __stm32_spi_prescaler_set(SPI_TypeDef *instance, ms_uint32_t baud_rate, ms_uint32_t *prescaler)
 {
     int div;
 
     if (instance == (SPI_TypeDef *)SPI2_BASE || instance == (SPI_TypeDef *)SPI3_BASE) {
-        div = __DIV_ROUND_UP(__PCLK1_MAX, baud_rate);
+        div = __DIV_ROUND_UP(HAL_RCC_GetPCLK1Freq(), baud_rate);
     } else {
-        div = __DIV_ROUND_UP(__PCLK2_MAX, baud_rate);
+        div = __DIV_ROUND_UP(HAL_RCC_GetPCLK2Freq(), baud_rate);
     }
 
     if (div <= 2) {
@@ -86,13 +80,11 @@ static void __stm32_spi_prescaler_set(SPI_TypeDef *instance,  ms_uint32_t baud_r
  */
 static void __stm32_spi_bus_int_set(privinfo_t *priv, ms_bool_t enable)
 {
-#if SPI_TRANS_MODE == SPI_IT_MODE
     if (enable) {
         HAL_NVIC_EnableIRQ(priv->irq);
     } else {
         HAL_NVIC_DisableIRQ(priv->irq);
     }
-#endif
 }
 
 /*
@@ -130,10 +122,8 @@ static int __stm32_spi_bus_param_convert(ms_spi_param_t *param, SPI_InitTypeDef 
 
     if (param->frame_mode & MS_SPI_TI_MODE_ENABLE) {
         config->TIMode = SPI_TIMODE_ENABLE;
-        config->NSSPMode = SPI_NSS_PULSE_DISABLE;
     } else {
         config->TIMode = SPI_TIMODE_DISABLE;
-        config->NSSPMode = SPI_NSS_PULSE_ENABLE;
 
         if (param->frame_mode & MS_SPI_CLK_POLARITY_HIGH) {
             config->CLKPolarity = SPI_POLARITY_HIGH;
@@ -156,10 +146,8 @@ static int __stm32_spi_bus_param_convert(ms_spi_param_t *param, SPI_InitTypeDef 
 
     if (param->frame_mode & MS_SPI_CRC_CALC_ENABLE) {
         config->CRCCalculation = SPI_CRCCALCULATION_ENABLE;
-        config->CRCLength = SPI_CRC_LENGTH_DATASIZE;
     } else {
         config->CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-        config->CRCLength = SPI_CRC_LENGTH_DATASIZE;
     }
 
     if (param->nss == MS_SPI_NSS_SOFT) {
@@ -175,228 +163,187 @@ static int __stm32_spi_bus_param_convert(ms_spi_param_t *param, SPI_InitTypeDef 
     return MS_ERR_NONE;
 }
 
-#if SPI_TRANS_MODE == SPI_POLL_MODE
 /*
  * SPI transmission in poll mode
  */
-static ms_ssize_t __stm32_spi_bus_trans(ms_ptr_t bus_ctx, ms_spi_cs_func_t cs, const ms_spi_msg_t *msg, ms_size_t n_msg)
+static ms_ssize_t __stm32_spi_bus_trans_poll(privinfo_t *priv, ms_spi_cs_func_t cs, const ms_spi_msg_t *msg, ms_size_t n_msg)
 {
-    privinfo_t *priv = bus_ctx;
     ms_uint32_t i;
-    ms_err_t    err = MS_ERR;
-
-    if (cs == MS_NULL) {
-        goto error;
-    }
 
     for (i = 0; i < n_msg; i++, msg++) {
         if (msg->flags & MS_SPI_M_BEGIN) {
-            cs(MS_TRUE);
+            if (cs != MS_NULL) {
+                cs(MS_TRUE);
+            }
         }
 
-        if (msg->flags & (MS_SPI_M_TX_FIX | MS_SPI_M_RX_FIX | MS_SPI_M_READ | MS_SPI_M_WRITE)) {
-            if (msg->flags & MS_SPI_M_TX_FIX) {
-                ms_uint32_t j;
-                for (j = 0; j < msg->len; j++) {
-                    if (HAL_SPI_Transmit(&priv->spi_handler, (uint8_t *)msg->tx_buf, 1, 2000) != MS_ERR_NONE) {
-                        goto error;
-                    }
+        if (msg->flags & MS_SPI_M_WRITE && msg->flags & MS_SPI_M_READ) {
+            if (HAL_SPI_TransmitReceive(&priv->spi_handler, (uint8_t *)msg->tx_buf, msg->rx_buf, msg->len, 2000) != MS_ERR_NONE ) {
+                goto error;
+            }
+
+        } else if (msg->flags & MS_SPI_M_WRITE) {
+            if (HAL_SPI_Transmit(&priv->spi_handler, (uint8_t *)msg->tx_buf, msg->len, 2000) != MS_ERR_NONE) {
+                goto error;
+            }
+
+        } else if (msg->flags & MS_SPI_M_READ) {
+            if (HAL_SPI_Receive(&priv->spi_handler, msg->rx_buf, msg->len, 2000) != MS_ERR_NONE) {
+                goto error;
+            }
+        }
+
+        if (msg->flags & MS_SPI_M_END) {
+            if (cs != MS_NULL) {
+                cs(MS_FALSE);
+            }
+        }
+    }
+
+    return i;
+
+error:
+    if (cs != MS_NULL) {
+        cs(MS_FALSE);
+    }
+
+    return i;
+}
+
+/*
+ * SPI transmission in IT mode
+ */
+static ms_ssize_t __stm32_spi_bus_trans_it(privinfo_t *priv, ms_spi_cs_func_t cs, const ms_spi_msg_t *msg, ms_size_t n_msg)
+{
+    ms_uint32_t i;
+
+    for (i = 0; i < n_msg; i++, msg++) {
+        if (msg->flags & MS_SPI_M_BEGIN) {
+            if (cs != MS_NULL) {
+                cs(MS_TRUE);
+            }
+        }
+
+        if (msg->flags & MS_SPI_M_WRITE && msg->flags & MS_SPI_M_READ) {
+            if (HAL_SPI_TransmitReceive_IT(&priv->spi_handler, (uint8_t *)msg->tx_buf, msg->rx_buf, msg->len) != MS_ERR_NONE ) {
+                goto error;
+            }
+
+        } else if (msg->flags & MS_SPI_M_WRITE) {
+            if (HAL_SPI_Transmit_IT(&priv->spi_handler, (uint8_t *)msg->tx_buf, msg->len) != MS_ERR_NONE) {
+                goto error;
+            }
+
+        } else if (msg->flags & MS_SPI_M_READ) {
+            if (HAL_SPI_Receive_IT(&priv->spi_handler, msg->rx_buf, msg->len) != MS_ERR_NONE) {
+                goto error;
+            }
+        }
+
+        ms_semb_wait(priv->sembid, MS_TIMEOUT_FOREVER);
+
+        if (msg->flags & MS_SPI_M_END) {
+            if (cs != MS_NULL) {
+                cs(MS_FALSE);
+            }
+        }
+    }
+
+    return i;
+
+error:
+    if (cs != MS_NULL) {
+        cs(MS_FALSE);
+    }
+
+    return i;
+}
+
+/*
+ * SPI transmission in DMA mode
+ */
+static ms_ssize_t __stm32_spi_bus_trans_dma(privinfo_t *priv, ms_spi_cs_func_t cs, const ms_spi_msg_t *msg, ms_size_t n_msg)
+{
+    ms_uint32_t i;
+
+    for (i = 0; i < n_msg; i++, msg++) {
+        if (msg->flags & MS_SPI_M_BEGIN) {
+            if (cs != MS_NULL) {
+                cs(MS_TRUE);
+            }
+        }
+
+        if (msg->len >= MS_ARCH_CACHE_LINE_SIZE) {
+            if (msg->flags & MS_SPI_M_WRITE && msg->flags & MS_SPI_M_READ) {
+                if (HAL_SPI_TransmitReceive_DMA(&priv->spi_handler, (uint8_t *)msg->tx_buf, msg->rx_buf, msg->len) != MS_ERR_NONE ) {
+                    goto error;
                 }
+
             } else if (msg->flags & MS_SPI_M_WRITE) {
-                if (HAL_SPI_Transmit(&priv->spi_handler, (uint8_t *)msg->tx_buf, msg->len, 2000) != MS_ERR_NONE) {
+                if (HAL_SPI_Transmit_DMA(&priv->spi_handler, (uint8_t *)msg->tx_buf, msg->len) != MS_ERR_NONE) {
+                    goto error;
+                }
+
+            } else if (msg->flags & MS_SPI_M_READ) {
+                if (HAL_SPI_Receive_DMA(&priv->spi_handler, msg->rx_buf, msg->len) != MS_ERR_NONE) {
                     goto error;
                 }
             }
 
-            if (msg->flags & MS_SPI_M_RX_FIX) {
-                ms_uint32_t j;
-                for (j = 0; j < msg->len; j++) {
-                    if (HAL_SPI_Receive(&priv->spi_handler, msg->rx_buf, 1, 2000) != MS_ERR_NONE ) {
-                        goto error;
-                    }
+            ms_semb_wait(priv->sembid, MS_TIMEOUT_FOREVER);
+
+        } else {
+            if (msg->flags & MS_SPI_M_WRITE && msg->flags & MS_SPI_M_READ) {
+                if (HAL_SPI_TransmitReceive(&priv->spi_handler, (uint8_t *)msg->tx_buf, msg->rx_buf, msg->len, 2000) != MS_ERR_NONE ) {
+                    goto error;
                 }
+
+            } else if (msg->flags & MS_SPI_M_WRITE) {
+                if (HAL_SPI_Transmit(&priv->spi_handler, (uint8_t *)msg->tx_buf, msg->len, 2000) != MS_ERR_NONE) {
+                    goto error;
+                }
+
             } else if (msg->flags & MS_SPI_M_READ) {
                 if (HAL_SPI_Receive(&priv->spi_handler, msg->rx_buf, msg->len, 2000) != MS_ERR_NONE) {
                     goto error;
                 }
             }
-        } else {
-            if (HAL_SPI_TransmitReceive(&priv->spi_handler, (uint8_t *)msg->tx_buf, msg->rx_buf, msg->len, 2000) != MS_ERR_NONE ) {
-                goto error;
-            }
         }
 
         if (msg->flags & MS_SPI_M_END) {
-            cs(MS_FALSE);
+            if (cs != MS_NULL) {
+                cs(MS_FALSE);
+            }
         }
     }
 
-    err = i;
+    return i;
 
 error:
-    return err;
-}
-#endif
+    if (cs != MS_NULL) {
+        cs(MS_FALSE);
+    }
 
-#if SPI_TRANS_MODE == SPI_IT_MODE
-/*
- * SPI transmission in IT mode
- */
+    return i;
+}
+
 static ms_ssize_t __stm32_spi_bus_trans(ms_ptr_t bus_ctx, ms_spi_cs_func_t cs, const ms_spi_msg_t *msg, ms_size_t n_msg)
 {
     privinfo_t *priv = bus_ctx;
-    ms_uint32_t i;
-    ms_err_t    err = MS_ERR;
+    ms_ssize_t  ret;
 
-    if (cs == MS_NULL) {
-        goto error;
+    if (priv->trans_mode == SPI_IT_MODE) {
+        ret = __stm32_spi_bus_trans_it(priv, cs, msg, n_msg);
+
+    } else if (priv->trans_mode == SPI_DMA_MODE) {
+        ret = __stm32_spi_bus_trans_dma(priv, cs, msg, n_msg);
+
+    } else {
+        ret = __stm32_spi_bus_trans_poll(priv, cs, msg, n_msg);
     }
 
-    for (i = 0; i < n_msg; i++, msg++) {
-        if (msg->flags & MS_SPI_M_BEGIN) {
-            cs(MS_TRUE);
-        }
-        if (msg->flags & (MS_SPI_M_TX_FIX | MS_SPI_M_RX_FIX | MS_SPI_M_READ | MS_SPI_M_WRITE)) {
-            if (msg->flags & MS_SPI_M_TX_FIX) {
-                ms_uint32_t j;
-                for (j = 0; j < msg->len; j++) {
-                    if (HAL_SPI_Transmit_IT(&priv->spi_handler, (uint8_t *)msg->tx_buf, 1) != MS_ERR_NONE) {
-                        goto error;
-                    }
-                    ms_semb_wait(priv->sembid, MS_TIMEOUT_FOREVER);
-                }
-            } else if (msg->flags & MS_SPI_M_WRITE) {
-                if (HAL_SPI_Transmit_IT(&priv->spi_handler, (uint8_t *)msg->tx_buf, msg->len) != MS_ERR_NONE) {
-                    goto error;
-                }
-                ms_semb_wait(priv->sembid, MS_TIMEOUT_FOREVER);
-            }
-
-            if (msg->flags & MS_SPI_M_RX_FIX) {
-                ms_uint32_t j;
-                for (j = 0; j < msg->len; j++) {
-                    if (HAL_SPI_Receive_IT(&priv->spi_handler, msg->rx_buf, 1) != MS_ERR_NONE ) {
-                        goto error;
-                    }
-                    ms_semb_wait(priv->sembid, MS_TIMEOUT_FOREVER);
-                }
-            } else if (msg->flags & MS_SPI_M_READ) {
-                if (HAL_SPI_Receive_IT(&priv->spi_handler, msg->rx_buf, msg->len) != MS_ERR_NONE) {
-                    goto error;
-                }
-                ms_semb_wait(priv->sembid, MS_TIMEOUT_FOREVER);
-            }
-
-        } else {
-            if (HAL_SPI_TransmitReceive_IT(&priv->spi_handler, (uint8_t *)msg->tx_buf, msg->rx_buf, msg->len) != MS_ERR_NONE ) {
-                goto error;
-            }
-            ms_semb_wait(priv->sembid, MS_TIMEOUT_FOREVER);
-        }
-
-        if (msg->flags & MS_SPI_M_END) {
-            cs(MS_FALSE);
-        }
-    }
-
-    err = i;
-
-error:
-    return err;
+    return ret;
 }
-#endif
-
-#if SPI_TRANS_MODE == SPI_DMA_MODE
-/*
- * SPI transmission in DMA mode
- */
-static ms_ssize_t __stm32_spi_bus_trans(ms_ptr_t bus_ctx, ms_spi_cs_func_t cs, const ms_spi_msg_t *msg, ms_size_t n_msg)
-{
-    privinfo_t *priv = bus_ctx;
-    ms_uint32_t i;
-    ms_err_t    err = MS_ERR;
-
-    if (cs == MS_NULL) {
-        goto error;
-    }
-
-    for (i = 0; i < n_msg; i++, msg++) {
-        if (msg->flags & MS_SPI_M_BEGIN) {
-            cs(MS_TRUE);
-        }
-
-        if (msg->flags & (MS_SPI_M_TX_FIX | MS_SPI_M_RX_FIX | MS_SPI_M_READ | MS_SPI_M_WRITE)) {
-            if (msg->flags & MS_SPI_M_TX_FIX) {
-                ms_uint32_t j;
-                for (j = 0; j < msg->len; j++) {
-                    if (HAL_SPI_Transmit(&priv->spi_handler, (uint8_t *)msg->tx_buf, 1, 2000) != MS_ERR_NONE) {
-                        goto error;
-                    }
-                }
-            } else if (msg->flags & MS_SPI_M_WRITE) {
-                if (msg->len < MS_ARCH_CACHE_LINE_SIZE) {
-                    if (HAL_SPI_Transmit(&priv->spi_handler, (uint8_t *)msg->tx_buf, msg->len, 2000) != MS_ERR_NONE) {
-                        goto error;
-                    }
-                } else {
-                    SCB_CleanDCache_by_Addr((uint32_t*)(msg->tx_buf), MS_ROUND_UP(msg->len, MS_ARCH_CACHE_LINE_SIZE));
-                    if (HAL_SPI_Transmit_DMA(&priv->spi_handler, (uint8_t *)msg->tx_buf, msg->len) != MS_ERR_NONE) {
-                        goto error;
-                    }
-
-                    ms_semb_wait(priv->sembid, MS_TIMEOUT_FOREVER);
-                }
-            }
-
-            if (msg->flags & MS_SPI_M_RX_FIX) {
-                ms_uint32_t j;
-                for (j = 0; j < msg->len; j++) {
-                    if (HAL_SPI_Receive(&priv->spi_handler, msg->rx_buf, 1, 2000) != MS_ERR_NONE ) {
-                        goto error;
-                    }
-                }
-            } else if (msg->flags & MS_SPI_M_READ) {
-                if (msg->len < MS_ARCH_CACHE_LINE_SIZE) {
-                    if (HAL_SPI_Receive(&priv->spi_handler, (uint8_t *)msg->rx_buf, msg->len, 2000) != MS_ERR_NONE) {
-                        goto error;
-                    }
-                } else {
-                    SCB_InvalidateDCache_by_Addr((uint32_t*)(msg->rx_buf), MS_ROUND_UP(msg->len, MS_ARCH_CACHE_LINE_SIZE));
-                    if (HAL_SPI_Receive_DMA(&priv->spi_handler, msg->rx_buf, msg->len) != MS_ERR_NONE) {
-                        goto error;
-                    }
-
-                    ms_semb_wait(priv->sembid, MS_TIMEOUT_FOREVER);
-                }
-            }
-        } else {
-            if (msg->len < MS_ARCH_CACHE_LINE_SIZE) {
-                if (HAL_SPI_TransmitReceive(&priv->spi_handler, (uint8_t *)msg->tx_buf, msg->rx_buf, msg->len, 2000) != MS_ERR_NONE ) {
-                    goto error;
-                }
-            } else {
-                SCB_CleanDCache_by_Addr((uint32_t*)(msg->tx_buf), MS_ROUND_UP(msg->len, MS_ARCH_CACHE_LINE_SIZE));
-                SCB_InvalidateDCache_by_Addr((uint32_t*)(msg->rx_buf), MS_ROUND_UP(msg->len, MS_ARCH_CACHE_LINE_SIZE));
-                if (HAL_SPI_TransmitReceive_DMA(&priv->spi_handler, (uint8_t *)msg->tx_buf, msg->rx_buf, msg->len) != MS_ERR_NONE ) {
-                    goto error;
-                }
-
-                ms_semb_wait(priv->sembid, MS_TIMEOUT_FOREVER);
-            }
-        }
-
-        if (msg->flags & MS_SPI_M_END) {
-            cs(MS_FALSE);
-        }
-    }
-
-    err = i;
-
-error:
-    return err;
-}
-#endif
-
 /*
  * SPI ioctl
  */
@@ -426,7 +373,11 @@ static int __stm32_spi_bus_ioctl(ms_ptr_t bus_ctx, int cmd, ms_ptr_t arg)
                 __stm32_spi_bus_int_set(priv, MS_FALSE);
                 HAL_SPI_DeInit(&priv->spi_handler);
                 HAL_SPI_Init(&priv->spi_handler);
-                __stm32_spi_bus_int_set(priv, MS_TRUE);
+                if (priv->trans_mode == SPI_IT_MODE ||
+                    priv->trans_mode == SPI_DMA_MODE) {
+                    __stm32_spi_bus_int_set(priv, MS_TRUE);
+                }
+
                 ret = 0;
             } else {
                 ms_thread_set_errno(EINVAL);
@@ -606,7 +557,7 @@ void stm32_spi_irq_handler(ms_uint8_t channel)
 /*
  * Create SPI device file
  */
-ms_err_t stm32_spi_bus_dev_create(const char *path, ms_uint8_t channel)
+ms_err_t stm32_spi_bus_dev_create(const char *path, ms_uint8_t channel, ms_uint8_t trans_mode)
 {
     ms_spi_bus_t *spi_bus;
     privinfo_t *priv;
@@ -631,11 +582,13 @@ ms_err_t stm32_spi_bus_dev_create(const char *path, ms_uint8_t channel)
         priv->param.data_size  = MS_SPI_DATA_SIZE_8BIT;
         priv->param.frame_mode = MS_SPI_TI_MODE_DISABLE;
         priv->param.nss        = MS_SPI_NSS_SOFT;
+        priv->trans_mode       = trans_mode;
 
         /*
          * Convert ms_spi_param_t to native structure SPI_InitTypeDef
          */
         __stm32_spi_bus_param_convert(&priv->param, &(priv->spi_handler.Init));
+
         /*
          * set spi prescaler
          */
@@ -645,7 +598,14 @@ ms_err_t stm32_spi_bus_dev_create(const char *path, ms_uint8_t channel)
          * Hardware initialization
          */
         if (HAL_SPI_Init(&priv->spi_handler) == HAL_OK) {
-            __stm32_spi_bus_int_set(priv, MS_TRUE);
+            if (priv->trans_mode == SPI_IT_MODE ||
+                priv->trans_mode == SPI_DMA_MODE) {
+                HAL_NVIC_SetPriority(priv->irq, 1, 3);
+                __stm32_spi_bus_int_set(priv, MS_TRUE);
+            } else {
+                __stm32_spi_bus_int_set(priv, MS_FALSE);
+            }
+
             err = ms_spi_bus_register(spi_bus);
             if (err == MS_ERR_NONE) {
                 err = ms_spi_bus_dev_create(path, spi_bus);
