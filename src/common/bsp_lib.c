@@ -133,6 +133,16 @@ const char *ms_bsp_device_name(void)
 }
 
 /**
+ * @brief Get bsp version.
+ *
+ * @return Bsp version
+ */
+ms_uint32_t ms_bsp_version(void)
+{
+    return MS_RTOS_VERSION_MAKE(1, 0, 0);
+}
+
+/**
  * @brief Get interrupt trace description.
  *
  * @return Interrupt trace description

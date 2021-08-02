@@ -153,7 +153,7 @@ ms_err_t stm32_flash_mount(const char *mnt_path)
     mount_param.calc_crc32           = ms_crc32;
     mount_param.mkfs_param.max_file  = BSP_CFG_FLASHFS_MAX_FILE;
     mount_param.mkfs_param.unit_size = BSP_CFG_FLASHFS_UNIT_SIZE;
-    mount_param.update_req_path      = MS_NULL;
+    mount_param.update_req_path      = BSP_CFG_UPDATE_REQ_FILE;
 
     return ms_io_mount(mnt_path, MS_NULL, MS_FLASHFS_NAME, &mount_param);
 }
@@ -170,7 +170,7 @@ ms_err_t stm32_flash_mount(const char *mnt_path)
     mount_param.priv                 = MS_NULL;
     mount_param.readonly             = MS_TRUE;
     mount_param.calc_crc32           = ms_crc32;
-    mount_param.update_req_path      = MS_NULL;
+    mount_param.update_req_path      = BSP_CFG_UPDATE_REQ_FILE;
 
     return ms_io_mount(mnt_path, MS_NULL, MS_FLASHFS_NAME, &mount_param);
 }

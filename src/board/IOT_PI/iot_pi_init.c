@@ -57,7 +57,7 @@ void SystemClock_Config(void)
     RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
     RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
     RCC_OscInitStruct.PLL.PLLM = 8;
-    RCC_OscInitStruct.PLL.PLLN = 100;
+    RCC_OscInitStruct.PLL.PLLN = 200;
     RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
     RCC_OscInitStruct.PLL.PLLQ = 7;
     RCC_OscInitStruct.PLL.PLLR = 2;
@@ -185,7 +185,7 @@ void ms_bsp_printk_init(void)
 #if (BSP_CFG_CONSOLE_DEV == BSP_CONSOLE_UART)
     UART_HandleTypeDef UartHandle;
 
-    UartHandle.Instance          = USART1;
+    UartHandle.Instance          = USART2;
 
     UartHandle.Init.BaudRate     = 115200U;
     UartHandle.Init.WordLength   = UART_WORDLENGTH_8B;
@@ -210,14 +210,17 @@ void ms_bsp_printk(const char *buf, ms_size_t len)
 {
 #if (BSP_CFG_CONSOLE_DEV == BSP_CONSOLE_UART)
     ms_size_t i;
-
+/*
+ *  if dont clear transfer flag ,will lost the first byte
+ */
+    __HAL_USART_INSTANCE_CLEAR_FLAG(USART2, USART_FLAG_TC);
     for (i = 0U; i < len; i++) {
-        while (!(USART1->SR & UART_FLAG_TXE)) {
+        while (!(USART2->SR & UART_FLAG_TXE)) {
         }
-        USART1->DR = *buf++;
+        USART2->DR = *buf++;
     }
 #else
-    ms_trace_write(buf, len);
+    ms_trace_write(MS_NULL, buf, len);
 #endif
 }
 
@@ -255,23 +258,18 @@ void ms_bsp_shutdown(void)
  */
 static void shell_thread(ms_ptr_t arg)
 {
-    extern unsigned long __ms_shell_cmd_start__;
-    extern unsigned long __ms_shell_cmd_end__;
-
     ms_shell_io_t bsp_shell_io = {
-            (ms_shell_cmd_t *)&__ms_shell_cmd_start__,
-            (ms_shell_cmd_t *)&__ms_shell_cmd_end__ - (ms_shell_cmd_t *)&__ms_shell_cmd_start__,
 #if (BSP_CFG_CONSOLE_DEV == BSP_CONSOLE_TRACE)
             ms_trace_getc,
             ms_trace_putc,
             ms_trace_write,
             ms_trace_printf,
 #elif (BSP_CFG_CONSOLE_DEV == BSP_CONSOLE_UART)
-            ms_getc,
-            ms_putc,
-            ms_write_stdout,
-            ms_printf,
-            ms_gets,
+            ms_shell_getc_stdin,
+            ms_shell_putc_stdout,
+            ms_shell_write_stdout,
+            ms_shell_printf_stdout,
+            ms_shell_gets_stdin,
 #endif
     };
 
@@ -390,7 +388,7 @@ static void boot_thread(ms_ptr_t arg)
     stm32_sd_drv_register();
 #endif
 
-#if BSP_CFG_FLASH_EN > 0
+#if (BSP_CFG_USE_BOOTLOADER > 0) && (BSP_CFG_FLASH_EN > 0)
     ms_flashfs_register();
     stm32_flash_mount("/flash");
 
@@ -412,7 +410,7 @@ static void boot_thread(ms_ptr_t arg)
     ms_wdg_dev_register("/dev/wdg", stm32_wdg_drv());
 #endif
 
-#if BSP_CFG_FLASH_EN > 0
+#if (BSP_CFG_USE_BOOTLOADER > 0) && (BSP_CFG_FLASH_EN > 0)
     ms_apps_start("ms-boot-param.dtb");
 #endif
 
@@ -497,7 +495,7 @@ static void test_thread(ms_ptr_t arg)
         if (dir != MS_NULL) {
             do {
                 ret = ms_io_readdir_r(dir, &dirent, &result);
-                if ((ret > 0) && (result != MS_NULL)) {
+                if ((ret == 0) && (result != MS_NULL)) {
                     if ((strcmp(result->d_name, ".") == 0) || (strcmp(result->d_name, "..") == 0)) {
                         continue;
                     }
@@ -755,11 +753,11 @@ void bsp_init(void)
 
 #if BSP_CFG_UART_EN > 0
     stm32_uart_drv_register();
-    stm32_uart_dev_create("/dev/uart0", 1, 256, 256);
+    stm32_uart_dev_create("/dev/uart2", 2, 256, 256); 
 #endif
 
 #if (BSP_CFG_CONSOLE_DEV == BSP_CONSOLE_UART)
-    int uart_fd = ms_io_open("/dev/uart0", O_RDWR, 0666);
+    int uart_fd = ms_io_open("/dev/uart2", O_RDWR, 0666);
     ms_uart_param_t param;
 
     ms_io_ioctl(uart_fd, MS_UART_CMD_GET_PARAM, &param);

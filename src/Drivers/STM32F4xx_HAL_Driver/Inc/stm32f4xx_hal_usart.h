@@ -373,7 +373,7 @@ typedef  void (*pUSART_CallbackTypeDef)(USART_HandleTypeDef *husart);  /*!< poin
   * @retval None
   */
 #define __HAL_USART_CLEAR_FLAG(__HANDLE__, __FLAG__) ((__HANDLE__)->Instance->SR = ~(__FLAG__))
-
+#define __HAL_USART_INSTANCE_CLEAR_FLAG(__INSTANCE__, __FLAG__) ((__INSTANCE__)->SR = ~(__FLAG__))
 /** @brief  Clear the USART PE pending flag.
   * @param  __HANDLE__ specifies the USART Handle.
   *         USART Handle selects the USARTx peripheral (USART availability and x value depending on device).

@@ -60,7 +60,7 @@
 *********************************************************************************************************/
 
 #define BSP_CFG_ROM_BASE            (0x08000000)
-#define BSP_CFG_ROM_SIZE            (512 * 1024 * 1024)
+#define BSP_CFG_ROM_SIZE            (512 * 1024)
 
 #define BSP_CFG_RAM_BASE            (0x20000000)
 #define BSP_CFG_RAM_SIZE            (256 * 1024)

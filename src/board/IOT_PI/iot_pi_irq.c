@@ -38,6 +38,24 @@ void USART1_IRQHandler(void)
 
     (void)ms_int_exit();
 }
+
+void USART2_IRQHandler(void)
+{
+    (void)ms_int_enter();
+
+    stm32_uart_irq_handler(2);
+
+    (void)ms_int_exit();
+}
+
+void USART3_IRQHandler(void)
+{
+    (void)ms_int_enter();
+
+    stm32_uart_irq_handler(3);
+
+    (void)ms_int_exit();
+}
 #endif
 
 #endif
